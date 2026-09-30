@@ -3,17 +3,20 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { getIO } from '../lib/socket.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { logActivity } from './activityController.js';
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   dueDate: z.string().datetime().nullable().optional(),
+  priority: z.enum(['none', 'low', 'medium', 'high']).optional(),
 });
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
   dueDate: z.string().datetime().nullable().optional(),
+  priority: z.enum(['none', 'low', 'medium', 'high']).optional(),
 });
 
 const moveTaskSchema = z.object({
@@ -36,7 +39,7 @@ async function verifyTaskOwnership(taskId: string, userId: string) {
 }
 
 export async function createTask(req: AuthRequest, res: Response) {
-  const { title, description, dueDate } = createTaskSchema.parse(req.body);
+  const { title, description, dueDate, priority } = createTaskSchema.parse(req.body);
   const { columnId } = req.params;
 
   if (!(await verifyColumnOwnership(columnId, req.userId!))) {
@@ -53,12 +56,15 @@ export async function createTask(req: AuthRequest, res: Response) {
       title,
       description,
       dueDate: dueDate ? new Date(dueDate) : null,
+      priority: priority || 'none',
       columnId,
       position: (maxPosition._max.position ?? -1) + 1,
     },
     include: { labels: { include: { label: true } } },
   });
 
+  const column = await prisma.column.findUnique({ where: { id: columnId } });
+  await logActivity(column!.boardId, req.userId!, 'task_created', `Created task "${title}"`);
   getIO().to(`board:${columnId}`).emit('task:created', task);
   res.status(201).json(task);
 }
@@ -79,6 +85,7 @@ export async function updateTask(req: AuthRequest, res: Response) {
     include: { labels: { include: { label: true } } },
   });
 
+  await logActivity(task.columnId, req.userId!, 'task_updated', `Updated task "${task.title}"`);
   getIO().to(`board:${task.columnId}`).emit('task:updated', task);
   res.json(task);
 }
@@ -129,6 +136,7 @@ export async function moveTask(req: AuthRequest, res: Response) {
     where: { id: task.id },
     include: { labels: { include: { label: true } } },
   });
+  await logActivity(columnId, req.userId!, 'task_moved', `Moved task "${updated!.title}"`);
   getIO().to(`board:${columnId}`).emit('task:moved', updated);
   res.json(updated);
 }
@@ -148,6 +156,7 @@ export async function deleteTask(req: AuthRequest, res: Response) {
     });
   });
 
+  await logActivity(task.columnId, req.userId!, 'task_deleted', `Deleted task "${task.title}"`);
   getIO().to(`board:${task.columnId}`).emit('task:deleted', { id: task.id });
   res.status(204).send();
 }

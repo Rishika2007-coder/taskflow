@@ -12,9 +12,12 @@ model User {
   name         String
   email        String       @unique
   passwordHash String
+  avatar       String?
   createdAt    DateTime     @default(now())
   boards       Board[]
   memberships  BoardMember[]
+  comments     Comment[]
+  activities   Activity[]
 }
 
 model Board {
@@ -26,6 +29,7 @@ model Board {
   columns   Column[]
   labels    Label[]
   members   BoardMember[]
+  activities Activity[]
 
   @@index([ownerId])
 }
@@ -59,10 +63,12 @@ model Task {
   title       String
   description String?
   dueDate     DateTime?
+  priority    String      @default("none")
   position    Int
   createdAt   DateTime    @default(now())
   column      Column      @relation(fields: [columnId], references: [id], onDelete: Cascade)
   labels      TaskLabel[]
+  comments    Comment[]
 
   @@index([columnId])
 }
@@ -85,4 +91,31 @@ model TaskLabel {
   label  Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
   @@id([taskId, labelId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@index([userId])
 }

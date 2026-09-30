@@ -9,6 +9,8 @@ import boardRoutes from './routes/boards.js';
 import columnRoutes from './routes/columns.js';
 import taskRoutes from './routes/tasks.js';
 import labelRoutes from './routes/labels.js';
+import commentRoutes from './routes/comments.js';
+import activityRoutes from './routes/activities.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -33,6 +35,8 @@ app.use('/auth', authRoutes);
 app.use('/boards', boardRoutes);
 app.use('/columns', columnRoutes);
 app.use('/labels', labelRoutes);
+app.use('/comments', commentRoutes);
+app.use('/activities', activityRoutes);
 app.use('/', taskRoutes);
 
 app.use(errorHandler);
