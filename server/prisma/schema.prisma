@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  name         String
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  boards       Board[]
+  memberships  BoardMember[]
+}
+
+model Board {
+  id        String        @id @default(cuid())
+  title     String
+  ownerId   String
+  owner     User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  columns   Column[]
+  labels    Label[]
+  members   BoardMember[]
+
+  @@index([ownerId])
+}
+
+model BoardMember {
+  id       String @id @default(cuid())
+  boardId  String
+  userId   String
+  board    Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
+}
+
+model Column {
+  id       String @id @default(cuid())
+  boardId  String
+  title    String
+  position Int
+  board    Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks    Task[]
+
+  @@index([boardId])
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  columnId    String
+  title       String
+  description String?
+  dueDate     DateTime?
+  position    Int
+  createdAt   DateTime    @default(now())
+  column      Column      @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  labels      TaskLabel[]
+
+  @@index([columnId])
+}
+
+model Label {
+  id       String     @id @default(cuid())
+  boardId  String
+  name     String
+  color    String
+  board    Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks    TaskLabel[]
+
+  @@index([boardId])
+}
+
+model TaskLabel {
+  taskId String
+  labelId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label  Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+}
